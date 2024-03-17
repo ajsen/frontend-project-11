@@ -14,6 +14,7 @@ export default {
   output: {
     filename: 'index.js',
     path: resolvePath('dist'),
+    clean: true,
   },
   devServer: {
     static: resolvePath('dist'),
@@ -24,7 +25,9 @@ export default {
     new HtmlWebpackPlugin({
       template: './index.html',
     }),
-    new MiniCssExtractPlugin(),
+    new MiniCssExtractPlugin({
+      filename: 'styles.css',
+    }),
   ],
   module: {
     rules: [
