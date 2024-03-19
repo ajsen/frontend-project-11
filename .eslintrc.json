@@ -17,6 +17,12 @@
                     "__dirname"
                 ]
             }
+        ],
+        "import/extensions": [
+            "error",
+            {
+                "js": "always"
+            }
         ]
     }
 }
