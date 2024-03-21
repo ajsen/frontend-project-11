@@ -1,8 +1,13 @@
 import onChange from 'on-change';
+import { isEmpty } from 'lodash';
 import render from './view.js';
 import validateForm from './validator.js';
 
 export default () => {
+  const elements = {
+    form: document.querySelector('.rss-form'),
+    input: document.getElementById('url-input'),
+  };
   const state = {
     form: {
       isValid: true,
@@ -11,9 +16,12 @@ export default () => {
         url: '',
       },
     },
+    feed: {
+      urls: [],
+    },
   };
 
-  const watchedState = onChange(state, render);
+  const watchedState = onChange(state, render(elements.form, elements.input));
 
   const handleForm = (e) => {
     e.preventDefault();
@@ -21,13 +29,18 @@ export default () => {
     const url = data.get('url');
 
     watchedState.form.field.url = url;
-    validateForm(state.form.field)
-      .then((err) => {
-        // console.log(err);
-        watchedState.form.errors = err;
-        watchedState.form.isValid = !err.length;
-        // console.log(state.form);
-      });
+    validateForm(state.form.field).then((err) => {
+      // console.log(err);
+      const isValid = !state.feed.urls.includes(url) && isEmpty(err);
+
+      if (isValid) {
+        watchedState.feed.urls.push(url);
+      }
+
+      watchedState.form.errors = err;
+      watchedState.form.isValid = isValid;
+      // console.log(state);
+    });
   };
 
   const form = document.querySelector('.rss-form');
