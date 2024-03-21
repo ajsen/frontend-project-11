@@ -25,6 +25,7 @@ export default () => {
 
   const handleForm = (e) => {
     e.preventDefault();
+
     const data = new FormData(e.target);
     const url = data.get('url');
 
