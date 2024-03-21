@@ -1,7 +1,10 @@
-const renderError = (error, previousError) => {
+const renderError = (form, input, error, previousError) => {
+  form.reset();
+  input.focus();
+
   const hadError = error && !previousError;
   const hasError = !error && previousError;
-  const input = document.getElementById('url-input');
+
   const feedback = document.querySelector('.feedback');
 
   if (!hasError && hadError) {
@@ -14,12 +17,12 @@ const renderError = (error, previousError) => {
   feedback.textContent = 'Ссылка должна быть валидным URL';
 };
 
-export default (path, value, previousValue) => {
+export default (form, input) => (path, value, previousValue) => {
   // console.log(path, value, previousValue);
 
   switch (path) {
-    case 'form.isValid':
-      renderError(value, previousValue);
+    case 'form.valid':
+      renderError(form, input, value, previousValue);
       break;
     default:
       break;
