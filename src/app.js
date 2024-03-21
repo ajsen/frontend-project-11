@@ -44,6 +44,5 @@ export default () => {
     });
   };
 
-  const form = document.querySelector('.rss-form');
-  form.addEventListener('submit', handleForm);
+  elements.form.addEventListener('submit', handleForm);
 };
