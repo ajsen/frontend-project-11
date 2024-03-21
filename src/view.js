@@ -21,7 +21,7 @@ export default (form, input) => (path, value, previousValue) => {
   // console.log(path, value, previousValue);
 
   switch (path) {
-    case 'form.valid':
+    case 'form.isValid':
       renderError(form, input, value, previousValue);
       break;
     default:
