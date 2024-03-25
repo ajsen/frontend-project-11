@@ -1,9 +1,15 @@
-const renderError = (form, input, error, previousError) => {
+import { isEmpty } from 'lodash';
+
+const renderFeedback = (form, input, i18nextInstance, state, errors, previousErrors) => {
   form.reset();
   input.focus();
 
-  const hadError = error && !previousError;
-  const hasError = !error && previousError;
+  const hadError = !isEmpty(previousErrors);
+  const hasError = !isEmpty(errors);
+
+  if (!hadError && !hasError) {
+    return;
+  }
 
   const feedback = document.querySelector('.feedback');
 
@@ -14,15 +20,14 @@ const renderError = (form, input, error, previousError) => {
   }
 
   input.classList.add('is-invalid');
-  feedback.textContent = 'Ссылка должна быть валидным URL';
+  feedback.textContent = i18nextInstance.t(state.form.errors);
 };
 
-export default (form, input) => (path, value, previousValue) => {
+export default (form, input, i18nextInstance, state) => (path, value, previousValue) => {
   // console.log(path, value, previousValue);
-
   switch (path) {
-    case 'form.isValid':
-      renderError(form, input, value, previousValue);
+    case 'form.errors':
+      renderFeedback(form, input, i18nextInstance, state, value, previousValue);
       break;
     default:
       break;
