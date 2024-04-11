@@ -78,8 +78,6 @@ export default () => {
         watchedState.feedLoadingProcess.error = error;
         watchedState.feedLoadingProcess.state = 'failed';
       });
-
-    console.log(state);
   };
 
   elements.urlForm.addEventListener('submit', handleForm);
