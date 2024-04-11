@@ -49,7 +49,7 @@ const handleProcessState = (elements, i18nextInstance, processState) => {
   }
 };
 
-export default (elements, i18nextInstance, state) => (path, value) => {
+export default (elements, i18nextInstance) => (path, value) => {
   const { urlFormSubmitButton } = elements;
   switch (path) {
     case 'feedLoadingProcess.state':
