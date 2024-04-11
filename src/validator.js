@@ -1,15 +1,22 @@
-import { object, string, setLocale } from 'yup';
+// @ts-check
 
-setLocale({
+import * as yup from 'yup';
+
+yup.setLocale({
   string: {
     url: 'feedback.errors.invalid_url',
   },
+  mixed: {
+    notOneOf: 'feedback.errors.existing_rss',
+  },
 });
 
-const schema = object({
-  url: string().url(),
-});
+export default (newUrl, existingUrls) => {
+  const schema = yup
+    .string()
+    .trim()
+    .url()
+    .notOneOf(existingUrls);
 
-export default (field) => schema.validate(field, { abortEarly: false })
-  .then(() => [])
-  .catch(({ errors }) => errors);
+  return schema.validate(newUrl);
+};
