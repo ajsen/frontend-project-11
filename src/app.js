@@ -1,69 +1,86 @@
-import onChange from 'on-change';
-import i18next from 'i18next';
-import { isEmpty } from 'lodash';
-import render from './view.js';
-import validateForm from './validator.js';
-import resources from './locales/resources.js';
+// @ts-nocheck
 
-const defaultLanguage = 'ru';
+import i18next from 'i18next';
+import onChange from 'on-change';
+import render from './view.js';
+import resources from './locales/resources.js';
+import validateUrl from './validator.js';
+import getData from './dataGetter.js';
+
+const defaultLng = 'ru';
 
 export default () => {
   const elements = {
-    form: document.querySelector('.rss-form'),
-    input: document.getElementById('url-input'),
+    urlForm: document.querySelector('.rss-form'),
+    urlFormSubmitButton: document.querySelector('.rss-form button[type="submit"'),
+    formUrlInput: document.getElementById('url-input'),
+    feedbackParagraph: document.querySelector('.feedback'),
+    feedsContainer: document.querySelector('.feeds'),
+    postsContainer: document.querySelector('.posts'),
   };
-
   const state = {
-    form: {
-      isValid: true,
-      errors: [],
-      field: {
-        url: '',
-      },
+    lng: defaultLng,
+    feedLoadingProcess: {
+      state: 'filling', // 'loading', 'loaded', 'failed'
+      validationState: 'valid',
+      error: null,
     },
-    feed: {
-      urls: [],
-    },
+    feeds: [],
+    posts: [],
+    urls: [],
   };
 
   const i18nextInstance = i18next.createInstance();
-  i18nextInstance.init({
-    lng: defaultLanguage,
-    debug: true,
-    resources,
-  });
+  i18nextInstance
+    .init({
+      fallbackLng: state.lng,
+      debug: true,
+      resources,
+    });
 
-  const watchedState = onChange(
-    state,
-    render(elements.form, elements.input, i18nextInstance, state),
-  );
+  const watchedState = onChange(state, render(elements, i18nextInstance, state));
+
+  const handleUrlInput = (e) => {
+    const newUrl = e.target.value;
+
+    watchedState.feedLoadingProcess.state = 'filling';
+
+    validateUrl(newUrl, state.urls)
+      .then(() => {
+        watchedState.feedLoadingProcess.validationState = 'valid';
+        watchedState.feedLoadingProcess.error = null;
+      })
+      .catch((error) => {
+        watchedState.feedLoadingProcess.validationState = 'invalid';
+        watchedState.feedLoadingProcess.error = error;
+      });
+  };
+
+  elements.formUrlInput.addEventListener('input', handleUrlInput);
 
   const handleForm = (e) => {
     e.preventDefault();
 
-    const data = new FormData(e.target);
-    const url = data.get('url');
+    const formData = new FormData(e.target);
+    const url = formData.get('url');
+    const newUrl = new URL(String(url)).href;
 
-    const isExist = state.feed.urls.includes(url);
-    if (isExist) {
-      watchedState.form.errors = ['feedback.errors.existing_url'];
-      watchedState.form.isValid = !isExist;
-      return;
-    }
+    watchedState.feedLoadingProcess.state = 'loading';
 
-    watchedState.form.field.url = url;
-    validateForm(state.form.field).then((errors) => {
-      // console.log(err);
-      const isValid = isEmpty(errors);
-      if (isValid) {
-        watchedState.feed.urls.push(url);
-      }
+    getData(newUrl)
+      .then(({ feed, posts }) => {
+        watchedState.urls.push(newUrl);
+        watchedState.feeds.push(feed);
+        watchedState.posts.push(posts);
+        watchedState.feedLoadingProcess.state = 'loaded';
+      })
+      .catch((error) => {
+        watchedState.feedLoadingProcess.error = error;
+        watchedState.feedLoadingProcess.state = 'failed';
+      });
 
-      watchedState.form.errors = errors;
-      watchedState.form.isValid = isValid;
-      // console.log(state);
-    });
+    console.log(state);
   };
 
-  elements.form.addEventListener('submit', handleForm);
+  elements.urlForm.addEventListener('submit', handleForm);
 };
