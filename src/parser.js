@@ -1,44 +1,54 @@
 // @ts-check
 
-const getTextContent = (element) => element?.textContent || '';
+import { uniqueId } from 'lodash';
 
-const getPosts = (items) => {
-  if (items.length === 0) {
+const getPosts = (xmlDocument) => {
+  const postElements = xmlDocument.getElementsByTagName('item');
+
+  if (postElements.length === 0) {
     return [];
   }
 
-  return Array.from(items).map((item) => {
-    const title = item.querySelector('title');
-    const description = item.querySelector('description');
-    const link = item.querySelector('link');
+  return Array.from(postElements).map((postElement) => {
+    const titleElement = postElement.querySelector('title');
+    const descriptionElement = postElement.querySelector('description');
+    const linkElement = postElement.querySelector('link');
 
     return {
-      title: getTextContent(title),
-      description: getTextContent(description),
-      link: getTextContent(link),
+      title: titleElement.textContent,
+      description: descriptionElement.textContent,
+      link: linkElement.textContent,
+      id: uniqueId('post_'),
     };
   });
 };
 
 const getFeed = (xmlDocument) => {
-  const title = xmlDocument.querySelector('title');
-  const description = xmlDocument.querySelector('description');
-  const items = xmlDocument.getElementsByTagName('item');
+  const titleElement = xmlDocument.querySelector('title');
+  const descriptionElement = xmlDocument.querySelector('description');
 
   return {
-    title: getTextContent(title),
-    description: getTextContent(description),
-    posts: getPosts(items),
+    title: titleElement.textContent,
+    description: descriptionElement.textContent,
+    id: uniqueId('feed_'),
   };
 };
 
-export default (xml) => {
-  const xmlDocument = new DOMParser().parseFromString(xml, 'text/xml');
+export default (xml) => new Promise((resolve, reject) => {
+  const parser = new DOMParser();
+  const xmlDocument = parser.parseFromString(xml, 'text/xml');
+  const errorElement = xmlDocument.querySelector('parsererror');
   const rootElement = xmlDocument.documentElement.nodeName;
-
-  if (rootElement !== 'rss') {
-    throw new Error('errors.invalid_rss');
+  if (errorElement || rootElement !== 'rss') {
+    reject(new Error('feedback.errors.invalid_rss'));
+    return;
   }
 
-  return getFeed(xmlDocument);
-};
+  const feed = getFeed(xmlDocument);
+  const posts = getPosts(xmlDocument);
+
+  resolve({
+    feed,
+    posts,
+  });
+});
