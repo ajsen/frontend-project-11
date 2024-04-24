@@ -23,6 +23,14 @@
             {
                 "js": "always"
             }
+        ],
+        "no-console": [
+            "warn",
+            {
+                "allow": [
+                    "error"
+                ]
+            }
         ]
     }
 }
