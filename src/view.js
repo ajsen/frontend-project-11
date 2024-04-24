@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 /* eslint-disable no-param-reassign */
 
 import { find } from 'lodash';
@@ -154,9 +154,7 @@ const handleProcessState = (elements, initialState, i18nextInstance, processStat
   }
 };
 
-export default (elements, initialState, i18nextInstance) => (path, value, prevValue) => {
-  console.log(path, value, prevValue);
-
+export default (elements, initialState, i18nextInstance) => (path, value) => {
   switch (path) {
     case 'feedAddingProcess.validationState':
       elements.urlFormSubmitButton.disabled = value === 'invalid';
