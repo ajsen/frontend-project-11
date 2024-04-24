@@ -9,7 +9,7 @@ const getPosts = (xmlDocument) => {
     return [];
   }
 
-  return Array.from(postElements).map((postElement) => {
+  const posts = Array.from(postElements).reverse().map((postElement) => {
     const titleElement = postElement.querySelector('title');
     const descriptionElement = postElement.querySelector('description');
     const linkElement = postElement.querySelector('link');
@@ -18,9 +18,11 @@ const getPosts = (xmlDocument) => {
       title: titleElement.textContent,
       description: descriptionElement.textContent,
       link: linkElement.textContent,
-      id: uniqueId('post_'),
+      id: uniqueId(),
     };
   });
+
+  return posts;
 };
 
 const getFeed = (xmlDocument) => {
@@ -30,25 +32,28 @@ const getFeed = (xmlDocument) => {
   return {
     title: titleElement.textContent,
     description: descriptionElement.textContent,
-    id: uniqueId('feed_'),
   };
 };
 
-export default (xml) => new Promise((resolve, reject) => {
-  const parser = new DOMParser();
-  const xmlDocument = parser.parseFromString(xml, 'text/xml');
+const isValid = (xmlDocument) => {
   const errorElement = xmlDocument.querySelector('parsererror');
   const rootElement = xmlDocument.documentElement.nodeName;
-  if (errorElement || rootElement !== 'rss') {
-    reject(new Error('feedback.errors.invalid_rss'));
+  return errorElement || rootElement !== 'rss';
+};
+
+export default (xml) => new Promise((resolve, reject) => {
+  const xmlDocument = new DOMParser().parseFromString(xml, 'text/xml');
+
+  if (isValid(xmlDocument)) {
+    const error = new Error('feedback.errors.invalid_rss');
+    reject(error);
     return;
   }
 
-  const feed = getFeed(xmlDocument);
-  const posts = getPosts(xmlDocument);
+  const data = {
+    feed: getFeed(xmlDocument),
+    posts: getPosts(xmlDocument),
+  };
 
-  resolve({
-    feed,
-    posts,
-  });
+  resolve(data);
 });
