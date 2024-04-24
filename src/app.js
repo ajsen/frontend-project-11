@@ -2,6 +2,7 @@
 
 import i18next from 'i18next';
 import onChange from 'on-change';
+import { isNull, differenceBy } from 'lodash';
 import render from './view.js';
 import resources from './locales/resources.js';
 import validateUrl from './validator.js';
@@ -11,74 +12,114 @@ const defaultLng = 'ru';
 
 export default () => {
   const elements = {
+    modal: document.getElementById('modal'),
+    modalTitle: document.querySelector('.modal-title'),
+    modalBody: document.querySelector('.modal-body'),
+    modalButton: document.querySelector('.modal a.btn'),
     urlForm: document.querySelector('.rss-form'),
-    urlFormSubmitButton: document.querySelector('.rss-form button[type="submit"'),
-    formUrlInput: document.getElementById('url-input'),
+    urlFormInput: document.getElementById('url-input'),
+    urlFormSubmitButton: document.querySelector('button[type="submit"]'),
     feedbackParagraph: document.querySelector('.feedback'),
-    feedsContainer: document.querySelector('.feeds'),
-    postsContainer: document.querySelector('.posts'),
+    feedsColumn: document.querySelector('.feeds'),
+    postsColumn: document.querySelector('.posts'),
   };
-  const state = {
+
+  const initialState = {
     lng: defaultLng,
-    feedLoadingProcess: {
-      state: 'filling', // 'loading', 'loaded', 'failed'
+    feedAddingProcess: {
+      processState: 'filling',
+      processError: null,
       validationState: 'valid',
-      error: null,
     },
-    feeds: [],
-    posts: [],
-    urls: [],
+    newsFeed: {
+      uiState: {
+        feeds: [],
+        posts: [],
+        readPosts: {
+          currentPostId: null,
+          ids: [],
+        },
+        modal: {
+          postId: null,
+        },
+      },
+      urls: [],
+    },
   };
 
   const i18nextInstance = i18next.createInstance();
-  i18nextInstance
-    .init({
-      fallbackLng: state.lng,
-      debug: true,
-      resources,
-    });
+  i18nextInstance.init({
+    fallbackLng: initialState.lng,
+    debug: true,
+    resources,
+  });
 
-  const watchedState = onChange(state, render(elements, i18nextInstance, state));
+  const watchedState = onChange(initialState, render(elements, initialState, i18nextInstance));
 
-  const handleUrlInput = (e) => {
+  elements.urlFormInput.addEventListener('input', (e) => {
+    watchedState.feedAddingProcess.processState = 'filling';
     const newUrl = e.target.value;
+    const existingUrls = initialState.newsFeed.urls;
+    validateUrl(newUrl, existingUrls).then((error) => {
+      watchedState.feedAddingProcess.processError = error;
+      watchedState.feedAddingProcess.validationState = isNull(error) ? 'valid' : 'invalid';
+    });
+  });
 
-    watchedState.feedLoadingProcess.state = 'filling';
-
-    validateUrl(newUrl, state.urls)
-      .then(() => {
-        watchedState.feedLoadingProcess.validationState = 'valid';
-        watchedState.feedLoadingProcess.error = null;
-      })
-      .catch((error) => {
-        watchedState.feedLoadingProcess.validationState = 'invalid';
-        watchedState.feedLoadingProcess.error = error;
-      });
-  };
-
-  elements.formUrlInput.addEventListener('input', handleUrlInput);
-
-  const handleForm = (e) => {
+  elements.urlForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const formData = new FormData(e.target);
-    const url = formData.get('url');
-    const newUrl = new URL(String(url)).href;
+    const url = new FormData(e.target).get('url');
+    const urlString = String(url);
+    const newUrl = new URL(urlString).href;
 
-    watchedState.feedLoadingProcess.state = 'loading';
-
+    watchedState.feedAddingProcess.processState = 'loading';
     getData(newUrl)
-      .then(({ feed, posts }) => {
-        watchedState.urls.push(newUrl);
-        watchedState.feeds.push(feed);
-        watchedState.posts.push(posts);
-        watchedState.feedLoadingProcess.state = 'loaded';
+      .then(({ feed: newFeed, posts: newPosts }) => {
+        initialState.newsFeed.urls.push(newUrl);
+        initialState.newsFeed.uiState.feeds.push(newFeed);
+        initialState.newsFeed.uiState.posts.push(...newPosts);
+        watchedState.feedAddingProcess.processState = 'loaded';
       })
       .catch((error) => {
-        watchedState.feedLoadingProcess.error = error;
-        watchedState.feedLoadingProcess.state = 'failed';
+        watchedState.feedAddingProcess.processError = (error.message === 'Network Error')
+          ? new Error('feedback.errors.network_error') : error;
+        watchedState.feedAddingProcess.processState = 'failed';
       });
+  });
+
+  elements.modal.addEventListener('show.bs.modal', (e) => {
+    const button = e.relatedTarget;
+    const id = button.getAttribute('data-id');
+    watchedState.newsFeed.uiState.readPosts.currentPostId = id;
+    watchedState.newsFeed.uiState.modal.postId = id;
+    initialState.newsFeed.uiState.readPosts.ids.push(id);
+  });
+
+  const delay = 5000;
+  const updatePosts = () => {
+    const { urls } = initialState.newsFeed;
+
+    if (urls.length === 0) {
+      setTimeout(updatePosts, delay);
+      return;
+    }
+
+    urls.forEach((url) => getData(url)
+      .then(({ posts: updatedPosts }) => {
+        const initialPosts = initialState.newsFeed.uiState.posts;
+        return differenceBy(updatedPosts, initialPosts, 'link');
+      })
+      .then((newPosts) => {
+        if (newPosts.length === 0) { return; }
+        watchedState.newsFeed.uiState.posts.push(...newPosts);
+      })
+      .catch((error) => {
+        console.error(error.message);
+      }));
+
+    setTimeout(updatePosts, delay);
   };
 
-  elements.urlForm.addEventListener('submit', handleForm);
+  setTimeout(updatePosts, delay);
 };
