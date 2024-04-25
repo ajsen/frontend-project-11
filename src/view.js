@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-param-reassign */
 
-import { find } from 'lodash';
+import { keyBy } from 'lodash';
 
 const buildCard = (cardTitleText) => {
   const cardBody = document.createElement('div');
@@ -34,23 +34,24 @@ const renderFeeds = (elements, initialState, i18nextInstance) => {
     return feedEl;
   };
 
-  const { feeds } = initialState.newsFeed.uiState;
+  const { feeds } = initialState.uiState.newsFeed;
   const reversedFeeds = feeds.toReversed();
   const feedsElements = reversedFeeds.map(buildFeedElement);
   const feedList = document.createElement('ul');
   feedList.classList.add('list-group', 'border-0', 'rounded-0');
   feedList.append(...feedsElements);
-  const cardTitleText = i18nextInstance.t('news_feed.feeds');
+  const cardTitleText = i18nextInstance.t('news_feed.feeds.title');
   const card = buildCard(cardTitleText);
   elements.feedsColumn.innerHTML = '';
   elements.feedsColumn.append(card, feedList);
 };
 
 const renderPosts = (elements, initialState, i18nextInstance) => {
-  const buildPostElement = (post) => {
+  const buildPostElement = (post, buttonText) => {
     const title = document.createElement('a');
-    const { ids: readPostsIds } = initialState.newsFeed.uiState.readPosts;
-    const titleClassName = readPostsIds.includes(post.id) ? 'fw-normal' : 'fw-bold';
+    const { readPosts } = initialState.uiState.newsFeed;
+    const readPostsById = keyBy(readPosts, 'id');
+    const titleClassName = readPostsById[post.id] ? 'fw-normal' : 'fw-bold';
     title.classList.add(titleClassName);
     title.setAttribute('href', post.link);
     title.setAttribute('data-id', post.id);
@@ -64,7 +65,12 @@ const renderPosts = (elements, initialState, i18nextInstance) => {
     button.setAttribute('data-id', post.id);
     button.setAttribute('data-bs-toggle', 'modal');
     button.setAttribute('data-bs-target', '#modal');
-    button.textContent = i18nextInstance.t('news_feed.view');
+    button.textContent = buttonText;
+    const handlePostButton = () => {
+      title.classList.replace('fw-bold', 'fw-normal');
+      initialState.uiState.newsFeed.readPosts.push(post);
+    };
+    button.addEventListener('click', handlePostButton);
 
     const postElement = document.createElement('li');
     postElement.classList.add(
@@ -79,100 +85,105 @@ const renderPosts = (elements, initialState, i18nextInstance) => {
     return postElement;
   };
 
-  const { posts } = initialState.newsFeed.uiState;
-  const reversedPosts = posts.toReversed();
-  const postsElements = reversedPosts.map(buildPostElement);
+  const { posts } = initialState.uiState.newsFeed;
+  const sortedPosts = posts.toSorted((post1, post2) => post2.pubDate - post1.pubDate);
+  const buttonText = i18nextInstance.t('news_feed.posts.view');
+  const postsElements = sortedPosts.map((post) => buildPostElement(post, buttonText));
   const postsList = document.createElement('ul');
   postsList.classList.add('list-group', 'border-0', 'rounded-0');
   postsList.append(...postsElements);
-  const cardTitleText = i18nextInstance.t('news_feed.posts');
+  const cardTitleText = i18nextInstance.t('news_feed.posts.title');
   const card = buildCard(cardTitleText);
   elements.postsColumn.innerHTML = '';
   elements.postsColumn.append(card, postsList);
 };
 
-const renderModal = (elements, initialState, id) => {
-  const { posts } = initialState.newsFeed.uiState;
-  const post = find(posts, { id });
-  const { title, description, link } = post;
-  elements.modalTitle.textContent = title;
-  elements.modalBody.textContent = description;
-  elements.modalButton.setAttribute('href', link);
-};
-
-const renderPostAsRead = (postId) => {
-  const postTitle = document.querySelector(`[data-id="${postId}"]`);
-  postTitle.classList.replace('fw-bold', 'fw-normal');
+const renderModal = (elements, modalPost) => {
+  elements.modalTitle.textContent = modalPost.title;
+  elements.modalBody.textContent = modalPost.description;
+  elements.modalButton.setAttribute('href', modalPost.link);
 };
 
 const renderSuccessFeedback = (elements, i18nextInstance) => {
-  elements.urlFormInput.classList.remove('is-invalid');
-  elements.feedbackParagraph.classList.replace('text-danger', 'text-success');
-  elements.feedbackParagraph.textContent = i18nextInstance.t('feedback.rss_loaded');
+  elements.urlInput.classList.remove('is-invalid');
+  elements.feedback.classList.replace('text-danger', 'text-success');
+  elements.feedback.textContent = i18nextInstance.t('rss_form.feedback.success.rss_loaded');
 };
 
-const renderErrorFeedback = (elements, i18nextInstance, error) => {
-  if (error === null) {
-    elements.urlFormInput.classList.remove('is-invalid');
-    elements.feedbackParagraph.textContent = '';
+const clearErrorFeedback = (elements) => {
+  elements.urlInput.classList.remove('is-invalid');
+  elements.feedback.textContent = '';
+};
+
+const showErrorFeedback = (elements, errorMessage) => {
+  elements.urlInput.classList.add('is-invalid');
+  elements.feedback.textContent = errorMessage;
+};
+
+const hasElementClass = (element, className) => element.classList.contains(className);
+
+const renderErrorFeedback = (elements, i18nextInstance, error, prevError) => {
+  if (error === null && prevError === null) {
     return;
   }
 
-  elements.urlFormInput.classList.add('is-invalid');
-  elements.feedbackParagraph.classList.replace('text-success', 'text-danger');
-  elements.feedbackParagraph.textContent = i18nextInstance.t(error.message);
+  if (error === null) {
+    clearErrorFeedback(elements);
+    return;
+  }
+
+  if (hasElementClass(elements.feedback, 'text-success')) {
+    elements.feedback.classList.replace('text-success', 'text-danger');
+  }
+  const errorMessage = i18nextInstance.t(error.message);
+  showErrorFeedback(elements, errorMessage);
 };
 
 const handleProcessState = (elements, initialState, i18nextInstance, processState) => {
-  const { urlForm, urlFormInput, urlFormSubmitButton } = elements;
-
   switch (processState) {
     case 'filling':
-      urlFormInput.disabled = false;
-      urlFormSubmitButton.disabled = false;
+      elements.urlInput.disabled = false;
+      elements.formSubmitButton.disabled = false;
       break;
     case 'loading':
-      urlFormInput.disabled = true;
-      urlFormSubmitButton.disabled = true;
+      elements.urlInput.disabled = true;
+      elements.formSubmitButton.disabled = true;
       break;
     case 'loaded':
       renderSuccessFeedback(elements, i18nextInstance);
       renderPosts(elements, initialState, i18nextInstance);
       renderFeeds(elements, initialState, i18nextInstance);
-      urlFormInput.disabled = false;
-      urlFormSubmitButton.disabled = false;
-      urlForm.reset();
-      urlFormInput.focus();
+      elements.urlInput.disabled = false;
+      elements.formSubmitButton.disabled = false;
+      elements.form.reset();
+      elements.urlInput.focus();
       break;
     case 'failed':
-      urlFormInput.disabled = false;
-      urlFormSubmitButton.disabled = false;
-      urlFormInput.focus();
+      elements.urlInput.disabled = false;
+      elements.formSubmitButton.disabled = false;
+      elements.urlInput.focus();
       break;
     default:
       throw new Error(`Unknown 'processState': ${processState}`);
   }
 };
 
-export default (elements, initialState, i18nextInstance) => (path, value) => {
+export default (elements, initialState, i18nextInstance) => (path, value, prevValue) => {
   switch (path) {
     case 'feedAddingProcess.validationState':
-      elements.urlFormSubmitButton.disabled = value === 'invalid';
+      elements.formSubmitButton.disabled = value === 'invalid';
       break;
     case 'feedAddingProcess.processError':
-      renderErrorFeedback(elements, i18nextInstance, value);
+      renderErrorFeedback(elements, i18nextInstance, value, prevValue);
       break;
     case 'feedAddingProcess.processState':
       handleProcessState(elements, initialState, i18nextInstance, value);
       break;
-    case 'newsFeed.uiState.posts':
+    case 'uiState.newsFeed.posts':
       renderPosts(elements, initialState, i18nextInstance);
       break;
-    case 'newsFeed.uiState.readPosts.currentPostId':
-      renderPostAsRead(value);
-      break;
-    case 'newsFeed.uiState.modal.postId':
-      renderModal(elements, initialState, value);
+    case 'uiState.modal.post':
+      renderModal(elements, value);
       break;
     default:
       throw new Error(`Unknown "path": ${path}`);
