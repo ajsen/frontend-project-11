@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 
 import axios from 'axios';
 
