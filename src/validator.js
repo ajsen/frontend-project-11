@@ -4,11 +4,11 @@ import * as yup from 'yup';
 
 yup.setLocale({
   string: {
-    url: 'feedback.errors.invalid_url',
+    url: 'rss_form.feedback.errors.invalid_url',
   },
   mixed: {
-    required: 'feedback.errors.required_field',
-    notOneOf: 'feedback.errors.existing_rss',
+    required: 'rss_form.feedback.errors.required_field',
+    notOneOf: 'rss_form.feedback.errors.existing_rss',
   },
 });
 
@@ -20,7 +20,8 @@ export default (newUrl, existingUrls) => {
     .url()
     .notOneOf(existingUrls);
 
-  return schema.validate(newUrl, { abortEarly: true })
+  return schema
+    .validate(newUrl, { abortEarly: true })
     .then(() => null)
     .catch((error) => error);
 };
