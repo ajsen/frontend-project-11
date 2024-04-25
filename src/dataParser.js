@@ -9,16 +9,18 @@ const getPosts = (xmlDocument) => {
     return [];
   }
 
-  const posts = Array.from(postElements).reverse().map((postElement) => {
+  const posts = Array.from(postElements).map((postElement) => {
     const titleElement = postElement.querySelector('title');
     const descriptionElement = postElement.querySelector('description');
     const linkElement = postElement.querySelector('link');
+    const pubDateElement = postElement.querySelector('pubDate');
 
     return {
       title: titleElement.textContent,
       description: descriptionElement.textContent,
       link: linkElement.textContent,
       id: uniqueId(),
+      pubDate: Date.parse(pubDateElement.textContent),
     };
   });
 
@@ -45,7 +47,7 @@ export default (xml) => new Promise((resolve, reject) => {
   const xmlDocument = new DOMParser().parseFromString(xml, 'text/xml');
 
   if (isValid(xmlDocument)) {
-    const error = new Error('feedback.errors.invalid_rss');
+    const error = new Error('rss_form.feedback.errors.invalid_rss');
     reject(error);
     return;
   }
