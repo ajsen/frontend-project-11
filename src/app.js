@@ -84,7 +84,7 @@ export default () => {
       })
       .catch((error) => {
         watchedState.feedAddingProcess.processError = (error.message === 'Network Error')
-          ? new Error('rss_feed.feedback.errors.network_error') : error;
+          ? new Error('rss_form.feedback.errors.network_error') : error;
         watchedState.feedAddingProcess.processState = 'failed';
       });
   };
