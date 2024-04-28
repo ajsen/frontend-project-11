@@ -47,7 +47,7 @@ export default (xml) => new Promise((resolve, reject) => {
   const xmlDocument = new DOMParser().parseFromString(xml, 'text/xml');
 
   if (isValid(xmlDocument)) {
-    const error = new Error('rss_form.feedback.errors.invalid_rss');
+    const error = new Error('rss.invalid');
     reject(error);
     return;
   }
