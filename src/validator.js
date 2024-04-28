@@ -4,11 +4,11 @@ import * as yup from 'yup';
 
 yup.setLocale({
   string: {
-    url: 'rss_form.feedback.errors.invalid_url',
+    url: 'url.invalid',
   },
   mixed: {
-    required: 'rss_form.feedback.errors.required_field',
-    notOneOf: 'rss_form.feedback.errors.existing_rss',
+    required: 'url.required',
+    notOneOf: 'url.exists',
   },
 });
 
