@@ -1,7 +1,8 @@
 // @ts-check
 /* eslint-disable no-param-reassign */
 
-import setElementDisabled from './utilities.js';
+import { isEqual } from 'lodash';
+import { setElementDisabled, toggleElementClass } from './utilities.js';
 
 const buildCard = (cardTitleText) => {
   const cardBody = document.createElement('div');
@@ -98,8 +99,8 @@ const renderPosts = (postsContainer, initialState, i18nextInstance) => {
 };
 
 const renderModal = (modalElements, modalPost) => {
-  modalElements.modalTitle.textContent = modalPost.title;
-  modalElements.modalBody.textContent = modalPost.description;
+  modalElements.modalTitleElement.textContent = modalPost.title;
+  modalElements.modalBodyElement.textContent = modalPost.description;
   modalElements.modalButton.setAttribute('href', modalPost.link);
 };
 
@@ -108,20 +109,29 @@ const renderSuccessFeedback = (feedbackElement, successMessage) => {
   feedbackElement.classList.add('text-success');
 };
 
-const renderErrorFeedback = (feedbackElement, i18nextInstance, error, prevError) => {
-  if (!error && !prevError) {
-    return;
-  }
-  if (error && prevError && error.message === prevError.message) {
-    return;
-  }
-  if (!error && prevError) {
-    feedbackElement.textContent = '';
-    feedbackElement.classList.remove('text-danger');
-    return;
-  }
-  feedbackElement.textContent = i18nextInstance.t(error.message);
+const renderErrorFeedback = (feedbackElement, errorMessage) => {
+  feedbackElement.textContent = errorMessage;
   feedbackElement.classList.add('text-danger');
+};
+
+const clearErrorFeedback = (feedbackElement) => {
+  feedbackElement.textContent = '';
+  feedbackElement.classList.remove('text-danger');
+};
+
+const handleProcessError = (feedbackElement, i18nextInstance, processError, prevProcessError) => {
+  if (!processError && !prevProcessError) {
+    return;
+  }
+  if (processError && prevProcessError && isEqual(processError, prevProcessError)) {
+    return;
+  }
+  if (!processError && prevProcessError) {
+    clearErrorFeedback(feedbackElement);
+    return;
+  }
+  const errorMessage = i18nextInstance.t(processError.message);
+  renderErrorFeedback(feedbackElement, errorMessage);
 };
 
 const disableForm = (formElements) => {
@@ -159,31 +169,16 @@ const handleProcessState = (elements, initialState, i18nextInstance, processStat
   }
 };
 
-const renderValidForm = (formElements) => {
-  formElements.formInputField.classList.remove('is-invalid');
-  setElementDisabled(formElements.formSubmitButton, false);
-};
-
-const renderInvalidForm = (formElements) => {
-  formElements.formInputField.classList.add('is-invalid');
-  setElementDisabled(formElements.formSubmitButton, true);
-};
-
-const handleValidationState = (formElements, validationState) => {
-  if (validationState === 'valid') {
-    renderValidForm(formElements);
-    return;
-  }
-  renderInvalidForm(formElements);
-};
+const isValid = (validationState) => validationState === 'valid';
 
 export default (elements, initialState, i18nextInstance) => (path, value, prevValue) => {
   switch (path) {
     case 'feedAddingProcess.validationState':
-      handleValidationState(elements.formElements, value);
+      setElementDisabled(elements.formElements.formSubmitButton, !isValid(value));
+      toggleElementClass(elements.formElements.formInputField, 'is-invalid', !isValid(value));
       break;
     case 'feedAddingProcess.processError':
-      renderErrorFeedback(elements.feedbackElement, i18nextInstance, value, prevValue);
+      handleProcessError(elements.feedbackElement, i18nextInstance, value, prevValue);
       break;
     case 'feedAddingProcess.processState':
       handleProcessState(elements, initialState, i18nextInstance, value);
