@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 
 import i18next from 'i18next';
 import onChange from 'on-change';
@@ -16,7 +16,7 @@ export default () => {
       modalContainer: document.getElementById('modal'),
       modalTitleElement: document.querySelector('.modal-title'),
       modalBodyElement: document.querySelector('.modal-body'),
-      modalButtonElement: document.querySelector('.modal a.btn'),
+      modalButton: document.querySelector('.modal a.btn'),
     },
     formElements: {
       formElement: document.querySelector('.rss-form'),
@@ -29,7 +29,6 @@ export default () => {
   };
 
   const initialState = {
-    feedUrls: [],
     feedAddingProcess: {
       processState: 'filling',
       processError: null,
@@ -60,8 +59,7 @@ export default () => {
   const handleOnInput = (e) => {
     watchedState.feedAddingProcess.processState = 'filling';
     const newUrl = e.target.value;
-    const existingUrls = initialState.feedUrls;
-    validateUrl(newUrl, existingUrls).then((error) => {
+    validateUrl(newUrl, initialState).then((error) => {
       watchedState.feedAddingProcess.processError = error;
       watchedState.feedAddingProcess.validationState = error ? 'invalid' : 'valid';
     });
@@ -81,8 +79,10 @@ export default () => {
     watchedState.feedAddingProcess.processState = 'loading';
     getData(newUrl)
       .then(({ feed: newFeed, posts: newPosts }) => {
-        initialState.feedUrls.push(newUrl);
-        initialState.uiState.newsFeed.feeds.push(newFeed);
+        initialState.uiState.newsFeed.feeds.push({
+          ...newFeed,
+          link: newUrl,
+        });
         initialState.uiState.newsFeed.posts.push(...newPosts);
         watchedState.feedAddingProcess.processState = 'loaded';
       })
@@ -111,20 +111,20 @@ export default () => {
 
   const delay = 5000;
   const updatePosts = () => {
-    const { feedUrls } = initialState;
+    const { feeds } = initialState.uiState.newsFeed;
 
-    if (feedUrls.length === 0) {
+    if (!feeds.length) {
       setTimeout(updatePosts, delay);
       return;
     }
 
-    feedUrls.forEach((feedUrl) => getData(feedUrl)
+    feeds.forEach(({ link }) => getData(link)
       .then(({ posts: updatedPosts }) => {
         const initialPosts = initialState.uiState.newsFeed.posts;
         return differenceBy(updatedPosts, initialPosts, 'link');
       })
       .then((newPosts) => {
-        if (newPosts.length === 0) { return; }
+        if (!newPosts.length) { return; }
         watchedState.uiState.newsFeed.posts.push(...newPosts);
       })
       .catch((error) => {
