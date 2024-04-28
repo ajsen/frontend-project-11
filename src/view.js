@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-param-reassign */
 
-import { keyBy } from 'lodash';
+import setElementDisabled from './utilities.js';
 
 const buildCard = (cardTitleText) => {
   const cardBody = document.createElement('div');
@@ -18,7 +18,7 @@ const buildCard = (cardTitleText) => {
   return card;
 };
 
-const renderFeeds = (elements, initialState, i18nextInstance) => {
+const renderFeeds = (feedsContainer, initialState, i18nextInstance) => {
   const buildFeedElement = (feed) => {
     const title = document.createElement('h3');
     title.textContent = feed.title;
@@ -42,16 +42,15 @@ const renderFeeds = (elements, initialState, i18nextInstance) => {
   feedList.append(...feedsElements);
   const cardTitleText = i18nextInstance.t('news_feed.feeds.title');
   const card = buildCard(cardTitleText);
-  elements.feedsColumn.innerHTML = '';
-  elements.feedsColumn.append(card, feedList);
+  card.append(feedList);
+  feedsContainer.replaceChildren(card);
 };
 
-const renderPosts = (elements, initialState, i18nextInstance) => {
+const renderPosts = (postsContainer, initialState, i18nextInstance) => {
   const buildPostElement = (post, buttonText) => {
     const title = document.createElement('a');
-    const { readPosts } = initialState.uiState.newsFeed;
-    const readPostsById = keyBy(readPosts, 'id');
-    const titleClassName = readPostsById[post.id] ? 'fw-normal' : 'fw-bold';
+    const { readPostsIds } = initialState.uiState.newsFeed;
+    const titleClassName = readPostsIds.includes(post.id) ? 'fw-normal' : 'fw-bold';
     title.classList.add(titleClassName);
     title.setAttribute('href', post.link);
     title.setAttribute('data-id', post.id);
@@ -66,11 +65,11 @@ const renderPosts = (elements, initialState, i18nextInstance) => {
     button.setAttribute('data-bs-toggle', 'modal');
     button.setAttribute('data-bs-target', '#modal');
     button.textContent = buttonText;
-    const handlePostButton = () => {
+    const handleMarkPostAsRead = () => {
       title.classList.replace('fw-bold', 'fw-normal');
-      initialState.uiState.newsFeed.readPosts.push(post);
+      initialState.uiState.newsFeed.readPostsIds.push(post.id);
     };
-    button.addEventListener('click', handlePostButton);
+    button.addEventListener('click', handleMarkPostAsRead);
 
     const postElement = document.createElement('li');
     postElement.classList.add(
@@ -87,103 +86,113 @@ const renderPosts = (elements, initialState, i18nextInstance) => {
 
   const { posts } = initialState.uiState.newsFeed;
   const sortedPosts = posts.toSorted((post1, post2) => post2.pubDate - post1.pubDate);
-  const buttonText = i18nextInstance.t('news_feed.posts.view');
+  const buttonText = i18nextInstance.t('news_feed.posts.button');
   const postsElements = sortedPosts.map((post) => buildPostElement(post, buttonText));
   const postsList = document.createElement('ul');
   postsList.classList.add('list-group', 'border-0', 'rounded-0');
   postsList.append(...postsElements);
   const cardTitleText = i18nextInstance.t('news_feed.posts.title');
   const card = buildCard(cardTitleText);
-  elements.postsColumn.innerHTML = '';
-  elements.postsColumn.append(card, postsList);
+  card.append(postsList);
+  postsContainer.replaceChildren(card);
 };
 
-const renderModal = (elements, modalPost) => {
-  elements.modalTitle.textContent = modalPost.title;
-  elements.modalBody.textContent = modalPost.description;
-  elements.modalButton.setAttribute('href', modalPost.link);
+const renderModal = (modalElements, modalPost) => {
+  modalElements.modalTitle.textContent = modalPost.title;
+  modalElements.modalBody.textContent = modalPost.description;
+  modalElements.modalButton.setAttribute('href', modalPost.link);
 };
 
-const renderSuccessFeedback = (elements, i18nextInstance) => {
-  elements.urlInput.classList.remove('is-invalid');
-  elements.feedback.classList.replace('text-danger', 'text-success');
-  elements.feedback.textContent = i18nextInstance.t('rss_form.feedback.success.rss_loaded');
+const renderSuccessFeedback = (feedbackElement, successMessage) => {
+  feedbackElement.textContent = successMessage;
+  feedbackElement.classList.add('text-success');
 };
 
-const clearErrorFeedback = (elements) => {
-  elements.urlInput.classList.remove('is-invalid');
-  elements.feedback.textContent = '';
-};
-
-const showErrorFeedback = (elements, errorMessage) => {
-  elements.urlInput.classList.add('is-invalid');
-  elements.feedback.textContent = errorMessage;
-};
-
-const hasElementClass = (element, className) => element.classList.contains(className);
-
-const renderErrorFeedback = (elements, i18nextInstance, error, prevError) => {
-  if (error === null && prevError === null) {
+const renderErrorFeedback = (feedbackElement, i18nextInstance, error, prevError) => {
+  if (!error && !prevError) {
     return;
   }
-
-  if (error === null) {
-    clearErrorFeedback(elements);
+  if (error && prevError && error.message === prevError.message) {
     return;
   }
-
-  if (hasElementClass(elements.feedback, 'text-success')) {
-    elements.feedback.classList.replace('text-success', 'text-danger');
+  if (!error && prevError) {
+    feedbackElement.textContent = '';
+    feedbackElement.classList.remove('text-danger');
+    return;
   }
-  const errorMessage = i18nextInstance.t(error.message);
-  showErrorFeedback(elements, errorMessage);
+  feedbackElement.textContent = i18nextInstance.t(error.message);
+  feedbackElement.classList.add('text-danger');
+};
+
+const disableForm = (formElements) => {
+  setElementDisabled(formElements.formInputField, true);
+  setElementDisabled(formElements.formSubmitButton, true);
+};
+
+const enableForm = (formElements) => {
+  setElementDisabled(formElements.formInputField, false);
+  setElementDisabled(formElements.formSubmitButton, false);
 };
 
 const handleProcessState = (elements, initialState, i18nextInstance, processState) => {
   switch (processState) {
     case 'filling':
-      elements.urlInput.disabled = false;
-      elements.formSubmitButton.disabled = false;
+      enableForm(elements.formElements);
       break;
     case 'loading':
-      elements.urlInput.disabled = true;
-      elements.formSubmitButton.disabled = true;
+      disableForm(elements.formElements);
       break;
     case 'loaded':
-      renderSuccessFeedback(elements, i18nextInstance);
-      renderPosts(elements, initialState, i18nextInstance);
-      renderFeeds(elements, initialState, i18nextInstance);
-      elements.urlInput.disabled = false;
-      elements.formSubmitButton.disabled = false;
-      elements.form.reset();
-      elements.urlInput.focus();
+      renderSuccessFeedback(elements.feedbackElement, i18nextInstance.t('rss.loaded'));
+      renderPosts(elements.postsContainer, initialState, i18nextInstance);
+      renderFeeds(elements.feedsContainer, initialState, i18nextInstance);
+      enableForm(elements.formElements);
+      elements.formElements.formElement.reset();
+      elements.formElements.formInputField.focus();
       break;
     case 'failed':
-      elements.urlInput.disabled = false;
-      elements.formSubmitButton.disabled = false;
-      elements.urlInput.focus();
+      enableForm(elements.formElements);
+      elements.formElements.formInputField.focus();
       break;
     default:
       throw new Error(`Unknown 'processState': ${processState}`);
   }
 };
 
+const renderValidForm = (formElements) => {
+  formElements.formInputField.classList.remove('is-invalid');
+  setElementDisabled(formElements.formSubmitButton, false);
+};
+
+const renderInvalidForm = (formElements) => {
+  formElements.formInputField.classList.add('is-invalid');
+  setElementDisabled(formElements.formSubmitButton, true);
+};
+
+const handleValidationState = (formElements, validationState) => {
+  if (validationState === 'valid') {
+    renderValidForm(formElements);
+    return;
+  }
+  renderInvalidForm(formElements);
+};
+
 export default (elements, initialState, i18nextInstance) => (path, value, prevValue) => {
   switch (path) {
     case 'feedAddingProcess.validationState':
-      elements.formSubmitButton.disabled = value === 'invalid';
+      handleValidationState(elements.formElements, value);
       break;
     case 'feedAddingProcess.processError':
-      renderErrorFeedback(elements, i18nextInstance, value, prevValue);
+      renderErrorFeedback(elements.feedbackElement, i18nextInstance, value, prevValue);
       break;
     case 'feedAddingProcess.processState':
       handleProcessState(elements, initialState, i18nextInstance, value);
       break;
     case 'uiState.newsFeed.posts':
-      renderPosts(elements, initialState, i18nextInstance);
+      renderPosts(elements.postsContainer, initialState, i18nextInstance);
       break;
     case 'uiState.modal.post':
-      renderModal(elements, value);
+      renderModal(elements.modalElements, value);
       break;
     default:
       throw new Error(`Unknown "path": ${path}`);
