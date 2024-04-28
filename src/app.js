@@ -12,16 +12,20 @@ const defaultLng = 'ru';
 
 export default () => {
   const elements = {
-    modal: document.getElementById('modal'),
-    modalTitle: document.querySelector('.modal-title'),
-    modalBody: document.querySelector('.modal-body'),
-    modalButton: document.querySelector('.modal a.btn'),
-    form: document.querySelector('.rss-form'),
-    urlInput: document.getElementById('url-input'),
-    formSubmitButton: document.querySelector('button[type="submit"]'),
-    feedback: document.querySelector('.feedback'),
-    feedsColumn: document.querySelector('.feeds'),
-    postsColumn: document.querySelector('.posts'),
+    modalElements: {
+      modalContainer: document.getElementById('modal'),
+      modalTitleElement: document.querySelector('.modal-title'),
+      modalBodyElement: document.querySelector('.modal-body'),
+      modalButtonElement: document.querySelector('.modal a.btn'),
+    },
+    formElements: {
+      formElement: document.querySelector('.rss-form'),
+      formInputField: document.getElementById('url-input'),
+      formSubmitButton: document.querySelector('button[type="submit"]'),
+    },
+    feedbackElement: document.querySelector('.feedback'),
+    feedsContainer: document.querySelector('.feeds'),
+    postsContainer: document.querySelector('.posts'),
   };
 
   const initialState = {
@@ -36,7 +40,7 @@ export default () => {
       newsFeed: {
         feeds: [],
         posts: [],
-        readPosts: [],
+        readPostsIds: [],
       },
       modal: {
         post: {},
@@ -63,8 +67,8 @@ export default () => {
     });
   };
 
-  if (elements.urlInput) {
-    elements.urlInput.addEventListener('input', handleOnInput);
+  if (elements.formElements.formInputField) {
+    elements.formElements.formInputField.addEventListener('input', handleOnInput);
   }
 
   const handleOnSubmit = (e) => {
@@ -84,13 +88,13 @@ export default () => {
       })
       .catch((error) => {
         watchedState.feedAddingProcess.processError = (error.message === 'Network Error')
-          ? new Error('rss_form.feedback.errors.network_error') : error;
+          ? new Error('network_error') : error;
         watchedState.feedAddingProcess.processState = 'failed';
       });
   };
 
-  if (elements.form) {
-    elements.form.addEventListener('submit', handleOnSubmit);
+  if (elements.formElements.formElement) {
+    elements.formElements.formElement.addEventListener('submit', handleOnSubmit);
   }
 
   const handleModal = (e) => {
@@ -101,8 +105,8 @@ export default () => {
     watchedState.uiState.modal.post = post;
   };
 
-  if (elements.modal) {
-    elements.modal.addEventListener('show.bs.modal', handleModal);
+  if (elements.modalElements.modalContainer) {
+    elements.modalElements.modalContainer.addEventListener('show.bs.modal', handleModal);
   }
 
   const delay = 5000;
