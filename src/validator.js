@@ -12,8 +12,7 @@ yup.setLocale({
   },
 });
 
-export default (newUrl, initialState) => {
-  const existingUrls = initialState.uiState.newsFeed.feeds.map(({ link }) => link);
+export default (newUrl, existingUrls) => {
   const schema = yup
     .string()
     .trim()
