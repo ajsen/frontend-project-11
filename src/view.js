@@ -173,14 +173,13 @@ const isValid = (validationState) => validationState === 'valid';
 
 export default (elements, initialState, i18nextInstance) => (path, value, prevValue) => {
   switch (path) {
-    case 'feedAddingProcess.validationState':
-      setElementDisabled(elements.formElements.formSubmitButton, !isValid(value));
+    case 'feedAddProcess.validationState':
       toggleElementClass(elements.formElements.formInputField, 'is-invalid', !isValid(value));
       break;
-    case 'feedAddingProcess.processError':
+    case 'feedAddProcess.processError':
       handleProcessError(elements.feedbackElement, i18nextInstance, value, prevValue);
       break;
-    case 'feedAddingProcess.processState':
+    case 'feedAddProcess.processState':
       handleProcessState(elements, initialState, i18nextInstance, value);
       break;
     case 'uiState.newsFeed.posts':
