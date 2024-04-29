@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 
 import i18next from 'i18next';
 import onChange from 'on-change';
@@ -29,7 +29,7 @@ export default () => {
   };
 
   const initialState = {
-    feedAddingProcess: {
+    feedAddProcess: {
       processState: 'filling',
       processError: null,
       validationState: 'valid',
@@ -50,18 +50,19 @@ export default () => {
   const i18nextInstance = i18next.createInstance();
   i18nextInstance.init({
     fallbackLng: initialState.uiState.lng,
-    debug: true,
+    debug: false,
     resources,
   });
 
   const watchedState = onChange(initialState, render(elements, initialState, i18nextInstance));
 
   const handleOnInput = (e) => {
-    watchedState.feedAddingProcess.processState = 'filling';
+    watchedState.feedAddProcess.processState = 'filling';
     const newUrl = e.target.value;
-    validateUrl(newUrl, initialState).then((error) => {
-      watchedState.feedAddingProcess.processError = error;
-      watchedState.feedAddingProcess.validationState = error ? 'invalid' : 'valid';
+    const existingUrls = initialState.uiState.newsFeed.feeds.map(({ link }) => link);
+    validateUrl(newUrl, existingUrls).then((result) => {
+      watchedState.feedAddProcess.processError = result;
+      watchedState.feedAddProcess.validationState = result ? 'invalid' : 'valid';
     });
   };
 
@@ -72,11 +73,15 @@ export default () => {
   const handleOnSubmit = (e) => {
     e.preventDefault();
 
+    if (initialState.feedAddProcess.validationState !== 'valid') {
+      return;
+    }
+
     const url = new FormData(e.target).get('url');
     const urlString = String(url);
     const newUrl = new URL(urlString).href;
 
-    watchedState.feedAddingProcess.processState = 'loading';
+    watchedState.feedAddProcess.processState = 'loading';
     getData(newUrl)
       .then(({ feed: newFeed, posts: newPosts }) => {
         initialState.uiState.newsFeed.feeds.push({
@@ -84,12 +89,12 @@ export default () => {
           link: newUrl,
         });
         initialState.uiState.newsFeed.posts.push(...newPosts);
-        watchedState.feedAddingProcess.processState = 'loaded';
+        watchedState.feedAddProcess.processState = 'loaded';
       })
       .catch((error) => {
-        watchedState.feedAddingProcess.processError = (error.message === 'Network Error')
+        watchedState.feedAddProcess.processError = (error.message === 'Network Error')
           ? new Error('network_error') : error;
-        watchedState.feedAddingProcess.processState = 'failed';
+        watchedState.feedAddProcess.processState = 'failed';
       });
   };
 
