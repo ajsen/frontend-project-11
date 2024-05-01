@@ -73,7 +73,7 @@ export default () => {
   const handleOnSubmit = (e) => {
     e.preventDefault();
 
-    if (initialState.feedAddProcess.validationState !== 'valid') {
+    if (initialState.feedAddProcess.validationState === 'invalid') {
       return;
     }
 
@@ -107,6 +107,9 @@ export default () => {
     const { posts } = initialState.uiState.newsFeed;
     const id = button.getAttribute('data-id');
     const post = find(posts, { id });
+    if (!post) {
+      throw new Error(`Modal post not found. Invalid post 'id': ${id}`);
+    }
     watchedState.uiState.modal.post = post;
   };
 
