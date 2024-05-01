@@ -163,6 +163,7 @@ const handleProcessState = (elements, initialState, i18nextInstance, processStat
     case 'failed':
       enableForm(elements.formElements);
       elements.formElements.formInputField.focus();
+      elements.formElements.formInputField.classList.add('is-invalid');
       break;
     default:
       throw new Error(`Unknown 'processState': ${processState}`);
