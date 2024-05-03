@@ -59,7 +59,7 @@ export default () => {
   const handleOnInput = (e) => {
     watchedState.feedAddProcess.processState = 'filling';
     const newUrl = e.target.value;
-    const existingUrls = initialState.uiState.newsFeed.feeds.map(({ link }) => link);
+    const existingUrls = initialState.uiState.newsFeed.feeds.map(({ url }) => url);
     validateUrl(newUrl, existingUrls).then((result) => {
       watchedState.feedAddProcess.processError = result;
       watchedState.feedAddProcess.validationState = result ? 'invalid' : 'valid';
@@ -78,15 +78,13 @@ export default () => {
     }
 
     const url = new FormData(e.target).get('url');
-    const urlString = String(url);
-    const newUrl = new URL(urlString).href;
 
     watchedState.feedAddProcess.processState = 'loading';
-    getData(newUrl)
+    getData(url)
       .then(({ feed: newFeed, posts: newPosts }) => {
         initialState.uiState.newsFeed.feeds.push({
           ...newFeed,
-          link: newUrl,
+          url,
         });
         initialState.uiState.newsFeed.posts.push(...newPosts);
         watchedState.feedAddProcess.processState = 'loaded';
@@ -126,7 +124,7 @@ export default () => {
       return;
     }
 
-    feeds.forEach(({ link }) => getData(link)
+    feeds.forEach(({ url }) => getData(url)
       .then(({ posts: updatedPosts }) => {
         const initialPosts = initialState.uiState.newsFeed.posts;
         return differenceBy(updatedPosts, initialPosts, 'link');
