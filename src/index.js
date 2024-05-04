@@ -1,5 +1,5 @@
-/* eslint-disable no-unused-vars */
 import './styles.scss';
+// eslint-disable-next-line no-unused-vars
 import { Modal } from 'bootstrap';
 import app from './app.js';
 
