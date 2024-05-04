@@ -9,27 +9,10 @@
         "sourceType": "module"
     },
     "rules": {
-        "no-underscore-dangle": [
-            "error",
-            {
-                "allow": [
-                    "__filename",
-                    "__dirname"
-                ]
-            }
-        ],
         "import/extensions": [
             "error",
             {
                 "js": "always"
-            }
-        ],
-        "no-console": [
-            "warn",
-            {
-                "allow": [
-                    "error"
-                ]
             }
         ]
     }
