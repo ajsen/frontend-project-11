@@ -134,6 +134,7 @@ export default () => {
         watchedState.uiState.newsFeed.posts.push(...newPosts);
       })
       .catch((error) => {
+        // eslint-disable-next-line no-console
         console.error(error.message);
       }));
 
