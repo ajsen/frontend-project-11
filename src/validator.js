@@ -15,6 +15,7 @@ yup.setLocale({
 export default (newUrl, existingUrls) => {
   const schema = yup
     .string()
+    .trim()
     .required()
     .url()
     .notOneOf(existingUrls);
