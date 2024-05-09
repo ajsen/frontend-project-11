@@ -1,14 +1,26 @@
 // @ts-check
 
 import i18next from 'i18next';
-import onChange from 'on-change';
-import { differenceBy, find } from 'lodash';
-import render from './view.js';
+import axios from 'axios';
 import resources from './locales/resources.js';
+import watch from './view.js';
 import validateUrl from './validator.js';
-import getData from './dataGetter.js';
+import parseData from './dataParser.js';
 
 const defaultLng = 'ru';
+const timeout = 5000;
+const axiosConfig = { timeout: 10000 };
+const allOriginsProxyUrl = 'https://allorigins.hexlet.app/get?disableCache=true';
+const mapNetworkErrorsByCode = {
+  ERR_NETWORK: new Error('network_error'),
+  ECONNABORTED: new Error('request_timed_out'),
+};
+
+const addProxy = (url) => {
+  const proxifiedUrl = new URL(allOriginsProxyUrl);
+  proxifiedUrl.searchParams.set('url', url);
+  return proxifiedUrl.href;
+};
 
 export default () => {
   const elements = {
@@ -29,41 +41,40 @@ export default () => {
   };
 
   const initialState = {
-    feedAddProcess: {
-      processState: 'filling',
-      processError: null,
-      validationState: 'valid',
+    feedLoadingProcess: {
+      state: 'waiting',
+      errors: null,
     },
-    uiState: {
+    form: {
+      isValid: true,
+      errors: null,
+    },
+    feeds: [],
+    posts: [],
+    userUi: {
       lng: defaultLng,
-      newsFeed: {
-        feeds: [],
-        posts: [],
-        readPostsIds: [],
-      },
-      modal: {
-        post: {},
-      },
+      modalPostId: null,
+      readPostsIds: [],
     },
   };
 
   const i18nextInstance = i18next.createInstance();
-  i18nextInstance.init({
-    fallbackLng: initialState.uiState.lng,
-    debug: false,
-    resources,
-  });
+  i18nextInstance
+    .init({
+      fallbackLng: initialState.userUi.lng,
+      debug: true,
+      resources,
+    })
+    .then((t) => t)
+    .catch((error) => { throw error.message; });
 
-  const watchedState = onChange(initialState, render(elements, initialState, i18nextInstance));
+  const axiosInstance = axios.create(axiosConfig);
 
-  const handleOnInput = (e) => {
-    watchedState.feedAddProcess.processState = 'filling';
-    const newUrl = e.target.value;
-    const existingUrls = initialState.uiState.newsFeed.feeds.map(({ url }) => url);
-    validateUrl(newUrl, existingUrls).then((result) => {
-      watchedState.feedAddProcess.processError = result;
-      watchedState.feedAddProcess.validationState = result ? 'invalid' : 'valid';
-    });
+  const watchedState = watch(initialState, i18nextInstance, elements);
+
+  const handleOnInput = () => {
+    watchedState.form.errors = null;
+    watchedState.form.isValid = true;
   };
 
   if (elements.formElements.formInputField) {
@@ -73,27 +84,34 @@ export default () => {
   const handleOnSubmit = (e) => {
     e.preventDefault();
 
-    if (initialState.feedAddProcess.validationState === 'invalid') {
-      return;
-    }
-
     const url = new FormData(e.target).get('url');
+    const existingUrls = watchedState.feeds.map((feed) => feed.url);
+    validateUrl(url, existingUrls).then((result) => {
+      if (result) {
+        watchedState.form.errors = result;
+        watchedState.form.isValid = false;
+        return;
+      }
 
-    watchedState.feedAddProcess.processState = 'loading';
-    getData(url)
-      .then(({ feed: newFeed, posts: newPosts }) => {
-        initialState.uiState.newsFeed.feeds.push({
-          ...newFeed,
-          url,
+      watchedState.feedLoadingProcess.state = 'loading';
+      axiosInstance.get(addProxy(url))
+        .then((response) => response.data.contents)
+        .then(parseData)
+        .then(({ feed: newFeed, posts: newPosts }) => {
+          watchedState.feeds.push({
+            ...newFeed,
+            url,
+          });
+          watchedState.posts.push(...newPosts);
+          watchedState.feedLoadingProcess.state = 'loaded';
+          watchedState.feedLoadingProcess.state = 'waiting';
+        })
+        .catch((error) => {
+          watchedState.feedLoadingProcess.errors = mapNetworkErrorsByCode[error.code] ?? error;
+          watchedState.feedLoadingProcess.state = 'failed';
+          watchedState.feedLoadingProcess.state = 'waiting';
         });
-        initialState.uiState.newsFeed.posts.push(...newPosts);
-        watchedState.feedAddProcess.processState = 'loaded';
-      })
-      .catch((error) => {
-        watchedState.feedAddProcess.processError = (error.message === 'Network Error')
-          ? new Error('network_error') : error;
-        watchedState.feedAddProcess.processState = 'failed';
-      });
+    });
   };
 
   if (elements.formElements.formElement) {
@@ -102,44 +120,48 @@ export default () => {
 
   const handleModal = (e) => {
     const button = e.relatedTarget;
-    const { posts } = initialState.uiState.newsFeed;
-    const id = button.getAttribute('data-id');
-    const post = find(posts, { id });
-    if (!post) {
-      throw new Error(`Modal post not found. Invalid post 'id': ${id}`);
-    }
-    watchedState.uiState.modal.post = post;
+    const postId = button.getAttribute('data-id');
+    watchedState.userUi.modalPostId = postId;
   };
 
   if (elements.modalElements.modalContainer) {
     elements.modalElements.modalContainer.addEventListener('show.bs.modal', handleModal);
   }
 
-  const delay = 5000;
+  const getNewPosts = (posts) => {
+    const initialPostsIds = initialState.posts.map(({ id }) => id);
+    const initialPostsIdsSet = new Set(initialPostsIds);
+    return posts.filter(({ id }) => !initialPostsIdsSet.has(id));
+  };
+
   const updatePosts = () => {
-    const { feeds } = initialState.uiState.newsFeed;
+    const { feeds } = initialState;
 
     if (!feeds.length) {
-      setTimeout(updatePosts, delay);
+      setTimeout(updatePosts, timeout);
       return;
     }
 
-    feeds.forEach(({ url }) => getData(url)
-      .then(({ posts: updatedPosts }) => {
-        const initialPosts = initialState.uiState.newsFeed.posts;
-        return differenceBy(updatedPosts, initialPosts, 'link');
-      })
+    const rawData = feeds.map(({ url }) => axiosInstance.get(addProxy(url))
+      .then((response) => response.data.contents)
+      .catch((error) => { throw error; }));
+
+    Promise.all(rawData)
+      .then((rawDataToParse) => rawDataToParse.map(parseData))
+      .then((parsedData) => parsedData.flatMap(({ posts }) => posts))
+      .then(getNewPosts)
       .then((newPosts) => {
         if (!newPosts.length) { return; }
-        watchedState.uiState.newsFeed.posts.push(...newPosts);
+        watchedState.posts.push(...newPosts);
       })
       .catch((error) => {
         // eslint-disable-next-line no-console
         console.error(error.message);
-      }));
-
-    setTimeout(updatePosts, delay);
+      })
+      .finally(() => {
+        setTimeout(updatePosts, timeout);
+      });
   };
 
-  setTimeout(updatePosts, delay);
+  setTimeout(updatePosts, timeout);
 };
