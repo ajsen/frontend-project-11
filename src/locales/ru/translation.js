@@ -2,14 +2,12 @@
 
 export default {
   translation: {
-    news_feed: {
-      feeds: {
-        title: 'Фиды',
-      },
-      posts: {
-        title: 'Посты',
-        button: 'Просмотр',
-      },
+    feeds: {
+      title: 'Фиды',
+    },
+    posts: {
+      title: 'Посты',
+      button: 'Просмотр',
     },
     rss: {
       loaded: 'RSS успешно загружен',
@@ -21,5 +19,6 @@ export default {
       exists: 'RSS уже существует',
     },
     network_error: 'Ошибка сети',
+    request_timed_out: 'Превышено время запроса',
   },
 };
