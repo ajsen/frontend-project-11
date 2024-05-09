@@ -62,7 +62,7 @@ export default () => {
   i18nextInstance
     .init({
       fallbackLng: initialState.userUi.lng,
-      debug: true,
+      debug: false,
       resources,
     })
     .then((t) => t)
