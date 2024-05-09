@@ -11,7 +11,7 @@ const defaultLng = 'ru';
 const timeout = 5000;
 const axiosConfig = { timeout: 10000 };
 const allOriginsProxyUrl = 'https://allorigins.hexlet.app/get?disableCache=true';
-const mapNetworkErrorsByCode = {
+const networkErrorsByCode = {
   ERR_NETWORK: new Error('network_error'),
   ECONNABORTED: new Error('request_timed_out'),
 };
@@ -107,7 +107,7 @@ export default () => {
           watchedState.feedLoadingProcess.state = 'waiting';
         })
         .catch((error) => {
-          watchedState.feedLoadingProcess.errors = mapNetworkErrorsByCode[error.code] ?? error;
+          watchedState.feedLoadingProcess.errors = networkErrorsByCode[error.code] ?? error;
           watchedState.feedLoadingProcess.state = 'failed';
           watchedState.feedLoadingProcess.state = 'waiting';
         });
