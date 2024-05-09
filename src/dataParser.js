@@ -1,7 +1,5 @@
 // @ts-check
 
-import { uniqueId } from 'lodash';
-
 const getPosts = (xmlDocument) => {
   const postElements = xmlDocument.getElementsByTagName('item');
 
@@ -13,13 +11,14 @@ const getPosts = (xmlDocument) => {
     const titleElement = postElement.querySelector('title');
     const descriptionElement = postElement.querySelector('description');
     const linkElement = postElement.querySelector('link');
+    const guidElement = postElement.querySelector('guid');
     const pubDateElement = postElement.querySelector('pubDate');
 
     return {
       title: titleElement.textContent,
       description: descriptionElement.textContent,
       link: linkElement.textContent,
-      id: uniqueId(),
+      id: guidElement.textContent,
       pubDate: Date.parse(pubDateElement.textContent),
     };
   });
@@ -43,19 +42,15 @@ const isValid = (xmlDocument) => {
   return errorElement || rootElement !== 'rss';
 };
 
-export default (xml) => new Promise((resolve, reject) => {
+export default (xml) => {
   const xmlDocument = new DOMParser().parseFromString(xml, 'text/xml');
 
   if (isValid(xmlDocument)) {
-    const error = new Error('rss.invalid');
-    reject(error);
-    return;
+    throw new Error('rss.invalid');
   }
 
-  const data = {
+  return {
     feed: getFeed(xmlDocument),
     posts: getPosts(xmlDocument),
   };
-
-  resolve(data);
-});
+};
