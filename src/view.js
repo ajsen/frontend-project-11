@@ -174,7 +174,6 @@ const handleProcessState = (i18nextInstance, elements, processState) => {
 // eslint-disable-next-line max-len
 export default (initialState, i18nextInstance, elements) => onChange(initialState, (path, value, prevValue) => {
   const { formInputField } = elements.formElements;
-  console.log(path);
   switch (path) {
     case 'form.isValid':
       toggleElementClass(formInputField, 'is-invalid', !value);
