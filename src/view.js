@@ -3,7 +3,7 @@
 
 import onChange from 'on-change';
 import { isEqual, find } from 'lodash';
-import { setElementDisabled, toggleElementClass } from './utilities.js';
+import { setElementDisabled, toggleElementClass, elementHasClass } from './utilities.js';
 
 const buildCard = (cardTitleText) => {
   const cardBody = document.createElement('div');
@@ -20,7 +20,7 @@ const buildCard = (cardTitleText) => {
   return card;
 };
 
-const renderFeeds = (feedsContainer, initialState, i18nextInstance) => {
+const renderFeeds = (feedsContainer, state, i18nextInstance) => {
   const buildFeedElement = (feed) => {
     const title = document.createElement('h3');
     title.textContent = feed.title;
@@ -36,7 +36,7 @@ const renderFeeds = (feedsContainer, initialState, i18nextInstance) => {
     return feedElement;
   };
 
-  const { feeds } = initialState;
+  const { feeds } = state;
   const reversedFeeds = feeds.toReversed();
   const feedsElements = reversedFeeds.map(buildFeedElement);
   const feedList = document.createElement('ul');
@@ -48,11 +48,11 @@ const renderFeeds = (feedsContainer, initialState, i18nextInstance) => {
   feedsContainer.replaceChildren(card);
 };
 
-const renderPosts = (postsContainer, initialState, i18nextInstance) => {
+const renderPosts = (postsContainer, state, i18nextInstance) => {
   const buildPostElement = (post, buttonText) => {
     const title = document.createElement('a');
-    const { readPostsIds } = initialState.userUi;
-    const titleClassName = readPostsIds.includes(post.id) ? 'fw-normal' : 'fw-bold';
+    const { idsOfReadPosts } = state.userUi;
+    const titleClassName = idsOfReadPosts.includes(post.id) ? 'fw-normal' : 'fw-bold';
     title.classList.add(titleClassName);
     title.setAttribute('href', post.link);
     title.setAttribute('data-id', post.id);
@@ -67,11 +67,6 @@ const renderPosts = (postsContainer, initialState, i18nextInstance) => {
     button.setAttribute('data-bs-toggle', 'modal');
     button.setAttribute('data-bs-target', '#modal');
     button.textContent = buttonText;
-    const handleMarkPostAsRead = () => {
-      title.classList.replace('fw-bold', 'fw-normal');
-      initialState.userUi.readPostsIds.push(post.id);
-    };
-    button.addEventListener('click', handleMarkPostAsRead);
 
     const postElement = document.createElement('li');
     postElement.classList.add(
@@ -86,7 +81,7 @@ const renderPosts = (postsContainer, initialState, i18nextInstance) => {
     return postElement;
   };
 
-  const { posts } = initialState;
+  const { posts } = state;
   const sortedPosts = posts.toSorted((post1, post2) => post2.pubDate - post1.pubDate);
   const buttonText = i18nextInstance.t('posts.button');
   const postsElements = sortedPosts.map((post) => buildPostElement(post, buttonText));
@@ -99,103 +94,120 @@ const renderPosts = (postsContainer, initialState, i18nextInstance) => {
   postsContainer.replaceChildren(card);
 };
 
-const renderModal = (initialState, modalElements, modalPostId) => {
-  const modalPost = find(initialState.posts, { id: modalPostId });
+const renderModal = (state, modal, modalPostId) => {
+  const modalPost = find(state.posts, { id: modalPostId });
   if (!modalPost) {
-    throw new Error(`Modal post not found. Invalid 'modalPostId': ${modalPostId}`);
+    throw new Error(`'modalPost' not found in the 'state'. Invalid 'modalPostId': ${modalPostId}`);
   }
-  const { modalTitleElement, modalBodyElement, modalButton } = modalElements;
-  modalTitleElement.textContent = modalPost.title;
-  modalBodyElement.textContent = modalPost.description;
-  modalButton.setAttribute('href', modalPost.link);
+  modal.title.textContent = modalPost.title;
+  modal.body.textContent = modalPost.description;
+  modal.button.setAttribute('href', modalPost.link);
 };
 
-const renderErrorFeedback = (feedbackElement, errorMessage) => {
-  feedbackElement.textContent = errorMessage;
-  feedbackElement.classList.add('text-danger');
+const renderPostAsRead = (state, postsContainer) => {
+  const { idsOfReadPosts } = state.userUi;
+  const idOfLastReadPost = idsOfReadPosts[idsOfReadPosts.length - 1];
+  const titleOfReadPost = postsContainer.querySelector(`a[data-id="${idOfLastReadPost}"]`);
+  if (!titleOfReadPost) {
+    throw new Error(`'titleOfReadPost' not found in the DOM. Invalid 'idOfLastReadPost': ${idOfLastReadPost}`);
+  }
+  titleOfReadPost.classList.replace('fw-bold', 'fw-normal');
 };
 
-const clearErrorFeedback = (feedbackElement) => {
-  feedbackElement.textContent = '';
-  feedbackElement.classList.remove('text-danger');
+const renderErrorFeedback = (feedbackParagraph, errorMessage) => {
+  feedbackParagraph.textContent = errorMessage;
+  if (!elementHasClass(feedbackParagraph, 'text-danger')) {
+    feedbackParagraph.classList.add('text-danger');
+  } else if (elementHasClass(feedbackParagraph, 'text-success')) {
+    feedbackParagraph.classList.remove('text-success');
+  }
 };
 
-const handleFeedbackError = (feedbackElement, i18nextInstance, errors, prevError) => {
-  if (errors && prevError && isEqual(errors, prevError)) {
+const clearFeedbackError = (feedbackParagraph) => {
+  feedbackParagraph.textContent = '';
+  if (!elementHasClass(feedbackParagraph, 'text-danger')) {
     return;
   }
-  if (!errors && prevError) {
-    clearErrorFeedback(feedbackElement);
+  feedbackParagraph.classList.remove('text-danger');
+};
+
+const handleFeedbackError = (feedbackParagraph, i18nextInstance, error, prevError) => {
+  if (error && prevError && isEqual(error, prevError)) {
     return;
   }
-  const errorMessage = i18nextInstance.t(errors.message);
-  renderErrorFeedback(feedbackElement, errorMessage);
+  if (!error && prevError) {
+    clearFeedbackError(feedbackParagraph);
+    return;
+  }
+  const errorMessage = i18nextInstance.t(error.message);
+  renderErrorFeedback(feedbackParagraph, errorMessage);
 };
 
-const renderSuccessFeedback = (feedbackElement, successMessage) => {
-  feedbackElement.textContent = successMessage;
-  feedbackElement.classList.add('text-success');
+const renderSuccessFeedback = (feedbackParagraph, successMessage) => {
+  feedbackParagraph.textContent = successMessage;
+  if (elementHasClass(feedbackParagraph, 'text-success')) {
+    return;
+  }
+  feedbackParagraph.classList.add('text-success');
 };
 
-const disableForm = (formElements) => {
-  setElementDisabled(formElements.formInputField, true);
-  setElementDisabled(formElements.formSubmitButton, true);
+const disableForm = (rssForm) => {
+  setElementDisabled(rssForm.inputField, true);
+  setElementDisabled(rssForm.submitButton, true);
 };
 
-const enableForm = (formElements) => {
-  setElementDisabled(formElements.formInputField, false);
-  setElementDisabled(formElements.formSubmitButton, false);
+const enableForm = (rssForm) => {
+  setElementDisabled(rssForm.inputField, false);
+  setElementDisabled(rssForm.submitButton, false);
 };
 
-const handleProcessState = (i18nextInstance, elements, processState) => {
-  const { formElements, feedbackElement } = elements;
-  switch (processState) {
+const handleProcessStatus = (i18nextInstance, elements, processStatus) => {
+  switch (processStatus) {
     case 'loading':
-      disableForm(formElements);
+      disableForm(elements.rssForm);
       break;
     case 'loaded':
-      renderSuccessFeedback(feedbackElement, i18nextInstance.t('rss.loaded'));
-      enableForm(formElements);
-      formElements.formElement.reset();
-      formElements.formInputField.focus();
+      renderSuccessFeedback(elements.feedbackParagraph, i18nextInstance.t('rss.loaded'));
+      enableForm(elements.rssForm);
+      elements.rssForm.form.reset();
+      elements.rssForm.inputField.focus();
       break;
     case 'failed':
-      enableForm(elements.formElements);
-      formElements.formInputField.focus();
-      formElements.formInputField.classList.add('is-invalid');
-      break;
-    case 'waiting':
+      enableForm(elements.rssForm);
+      elements.rssForm.inputField.focus();
       break;
     default:
-      throw new Error(`Unknown 'processState': ${processState}`);
+      throw new Error(`Unknown 'processState': ${processStatus}`);
   }
 };
 
 // eslint-disable-next-line max-len
-export default (initialState, i18nextInstance, elements) => onChange(initialState, (path, value, prevValue) => {
-  const { formInputField } = elements.formElements;
+export default (state, i18nextInstance, elements) => onChange(state, (path, value, prevValue) => {
   switch (path) {
     case 'form.isValid':
-      toggleElementClass(formInputField, 'is-invalid', !value);
-      formInputField.focus();
+      toggleElementClass(elements.rssForm.inputField, 'is-invalid', !value);
+      elements.rssForm.inputField.focus();
       break;
     case 'form.errors':
-      handleFeedbackError(elements.feedbackElement, i18nextInstance, value, prevValue);
+      handleFeedbackError(elements.feedbackParagraph, i18nextInstance, value, prevValue);
       break;
     case 'feedLoadingProcess.errors':
-      handleFeedbackError(elements.feedbackElement, i18nextInstance, value, prevValue);
+      handleFeedbackError(elements.feedbackParagraph, i18nextInstance, value, prevValue);
       break;
-    case 'feedLoadingProcess.state':
-      handleProcessState(i18nextInstance, elements, value);
+    case 'feedLoadingProcess.status':
+      handleProcessStatus(i18nextInstance, elements, value);
       break;
     case 'posts':
-      renderPosts(elements.postsContainer, initialState, i18nextInstance);
+      renderPosts(elements.postsContainer, state, i18nextInstance);
       break;
     case 'feeds':
-      renderFeeds(elements.feedsContainer, initialState, i18nextInstance);
+      renderFeeds(elements.feedsContainer, state, i18nextInstance);
       break;
     case 'userUi.modalPostId':
-      renderModal(initialState, elements.modalElements, value);
+      renderModal(state, elements.modal, value);
+      break;
+    case 'userUi.idsOfReadPosts':
+      renderPostAsRead(state, elements.postsContainer);
       break;
     default:
       throw new Error(`Unknown 'path': ${path}`);
