@@ -3,7 +3,7 @@
 const getPosts = (xmlDocument) => {
   const postElements = xmlDocument.getElementsByTagName('item');
 
-  if (postElements.length === 0) {
+  if (!postElements.length) {
     return [];
   }
 
@@ -39,13 +39,13 @@ const getFeed = (xmlDocument) => {
 const isValid = (xmlDocument) => {
   const errorElement = xmlDocument.querySelector('parsererror');
   const rootElement = xmlDocument.documentElement.nodeName;
-  return errorElement || rootElement !== 'rss';
+  return !errorElement && rootElement === 'rss';
 };
 
 export default (xml) => {
   const xmlDocument = new DOMParser().parseFromString(xml, 'text/xml');
 
-  if (isValid(xmlDocument)) {
+  if (!isValid(xmlDocument)) {
     throw new Error('rss.invalid');
   }
 
