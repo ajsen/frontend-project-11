@@ -118,7 +118,8 @@ const renderErrorFeedback = (feedbackParagraph, errorMessage) => {
   feedbackParagraph.textContent = errorMessage;
   if (!elementHasClass(feedbackParagraph, 'text-danger')) {
     feedbackParagraph.classList.add('text-danger');
-  } else if (elementHasClass(feedbackParagraph, 'text-success')) {
+  }
+  if (elementHasClass(feedbackParagraph, 'text-success')) {
     feedbackParagraph.classList.remove('text-success');
   }
 };
