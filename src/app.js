@@ -33,6 +33,8 @@ const app = (i18nextInstance, axiosInstance, initialState, elements) => {
   const watchedState = watch(state, i18nextInstance, elements);
 
   const handleOnInput = () => {
+    watchedState.feedLoadingProcess.errors = null;
+    watchedState.feedLoadingProcess.status = 'waiting';
     watchedState.form.errors = null;
     watchedState.form.isValid = true;
   };
@@ -51,12 +53,10 @@ const app = (i18nextInstance, axiosInstance, initialState, elements) => {
         });
         watchedState.posts.push(...newPosts);
         watchedState.feedLoadingProcess.status = 'loaded';
-        state.feedLoadingProcess.status = 'waiting';
       })
       .catch((error) => {
         watchedState.feedLoadingProcess.errors = networkErrorsByCode[error.code] ?? error;
         watchedState.feedLoadingProcess.status = 'failed';
-        state.feedLoadingProcess.status = 'waiting';
       });
   };
 
@@ -64,7 +64,7 @@ const app = (i18nextInstance, axiosInstance, initialState, elements) => {
     e.preventDefault();
 
     const url = new FormData(e.target).get('url');
-    const existingUrls = watchedState.feeds.map((feed) => feed.url);
+    const existingUrls = state.feeds.map((feed) => feed.url);
     validateUrl(url, existingUrls).then((result) => {
       if (result) {
         watchedState.form.errors = result;
@@ -80,20 +80,15 @@ const app = (i18nextInstance, axiosInstance, initialState, elements) => {
     elements.rssForm.form.addEventListener('submit', handleOnSubmit);
   }
 
-  const handleModal = (e) => {
-    const button = e.relatedTarget;
-    const postId = button.dataset.id;
-    watchedState.userUi.modalPostId = postId;
-  };
-
-  if (elements.modal.container) {
-    elements.modal.container.addEventListener('show.bs.modal', handleModal);
-  }
+  const postExist = (postId) => state.posts.some((post) => post.id === postId);
 
   const handleMarkPostAsRead = (e) => {
-    const readPost = e.target;
-    const readPostId = readPost.dataset.id;
-    watchedState.userUi.idsOfReadPosts.push(readPostId);
+    const readPostId = e.target.dataset.id;
+    if (!postExist(readPostId)) {
+      return;
+    }
+    watchedState.userUi.idsOfReadPosts.add(readPostId);
+    watchedState.userUi.modalPostId = readPostId;
   };
 
   if (elements.postsContainer) {
@@ -123,17 +118,11 @@ const app = (i18nextInstance, axiosInstance, initialState, elements) => {
         }
         watchedState.posts.push(...newPosts);
       })
-      .catch((error) => {
-        throw error;
-      }));
+      .catch((error) => error));
 
     Promise.all(promises)
       .then(() => {
         setTimeout(updatePosts, timeout);
-      })
-      .catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error(error.message);
       });
   };
 
@@ -171,8 +160,8 @@ export default () => {
     posts: [],
     userUi: {
       lng: defaultLng,
+      idsOfReadPosts: new Set(),
       modalPostId: null,
-      idsOfReadPosts: [],
     },
   };
 
