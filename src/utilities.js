@@ -7,5 +7,3 @@ export const setElementDisabled = (element, disabled) => {
 export const toggleElementClass = (element, className, force) => {
   element.classList.toggle(className, force);
 };
-
-export const elementHasClass = (element, className) => element.classList.contains(className);
