@@ -1,9 +1,7 @@
 // @ts-check
-/* eslint-disable no-param-reassign */
 
 import onChange from 'on-change';
-import { isEqual, find } from 'lodash';
-import { setElementDisabled, toggleElementClass, elementHasClass } from './utilities.js';
+import { setElementDisabled, toggleElementClass } from './utilities.js';
 
 const buildCard = (cardTitleText) => {
   const cardBody = document.createElement('div');
@@ -52,7 +50,7 @@ const renderPosts = (postsContainer, state, i18nextInstance) => {
   const buildPostElement = (post, buttonText) => {
     const title = document.createElement('a');
     const { idsOfReadPosts } = state.userUi;
-    const titleClassName = idsOfReadPosts.includes(post.id) ? 'fw-normal' : 'fw-bold';
+    const titleClassName = idsOfReadPosts.has(post.id) ? 'fw-normal' : 'fw-bold';
     title.classList.add(titleClassName);
     title.setAttribute('href', post.link);
     title.setAttribute('data-id', post.id);
@@ -95,61 +93,33 @@ const renderPosts = (postsContainer, state, i18nextInstance) => {
 };
 
 const renderModal = (state, modal, modalPostId) => {
-  const modalPost = find(state.posts, { id: modalPostId });
-  if (!modalPost) {
-    throw new Error(`'modalPost' not found in the 'state'. Invalid 'modalPostId': ${modalPostId}`);
-  }
+  const modalPost = state.posts.find((post) => post.id === modalPostId);
+  // eslint-disable-next-line no-param-reassign
   modal.title.textContent = modalPost.title;
+  // eslint-disable-next-line no-param-reassign
   modal.body.textContent = modalPost.description;
   modal.button.setAttribute('href', modalPost.link);
 };
 
-const renderPostAsRead = (state, postsContainer) => {
-  const { idsOfReadPosts } = state.userUi;
-  const idOfLastReadPost = idsOfReadPosts[idsOfReadPosts.length - 1];
-  const titleOfReadPost = postsContainer.querySelector(`a[data-id="${idOfLastReadPost}"]`);
-  if (!titleOfReadPost) {
-    throw new Error(`'titleOfReadPost' not found in the DOM. Invalid 'idOfLastReadPost': ${idOfLastReadPost}`);
-  }
-  titleOfReadPost.classList.replace('fw-bold', 'fw-normal');
-};
-
-const renderErrorFeedback = (feedbackParagraph, errorMessage) => {
-  feedbackParagraph.textContent = errorMessage;
-  if (!elementHasClass(feedbackParagraph, 'text-danger')) {
-    feedbackParagraph.classList.add('text-danger');
-  }
-  if (elementHasClass(feedbackParagraph, 'text-success')) {
-    feedbackParagraph.classList.remove('text-success');
-  }
-};
-
-const clearFeedbackError = (feedbackParagraph) => {
+const clearFeedbackMessage = (feedbackParagraph) => {
+  // eslint-disable-next-line no-param-reassign
   feedbackParagraph.textContent = '';
-  if (!elementHasClass(feedbackParagraph, 'text-danger')) {
-    return;
-  }
-  feedbackParagraph.classList.remove('text-danger');
 };
 
-const handleFeedbackError = (feedbackParagraph, i18nextInstance, error, prevError) => {
-  if (error && prevError && isEqual(error, prevError)) {
-    return;
-  }
-  if (!error && prevError) {
-    clearFeedbackError(feedbackParagraph);
+const showFeedbackMessage = (feedbackParagraph, message) => {
+  // eslint-disable-next-line no-param-reassign
+  feedbackParagraph.textContent = message;
+};
+
+const renderFeedbackError = (i18nextInstance, feedbackParagraph, error) => {
+  if (!error) {
+    clearFeedbackMessage(feedbackParagraph);
+    feedbackParagraph.classList.remove('text-danger');
     return;
   }
   const errorMessage = i18nextInstance.t(error.message);
-  renderErrorFeedback(feedbackParagraph, errorMessage);
-};
-
-const renderSuccessFeedback = (feedbackParagraph, successMessage) => {
-  feedbackParagraph.textContent = successMessage;
-  if (elementHasClass(feedbackParagraph, 'text-success')) {
-    return;
-  }
-  feedbackParagraph.classList.add('text-success');
+  showFeedbackMessage(feedbackParagraph, errorMessage);
+  feedbackParagraph.classList.add('text-danger');
 };
 
 const disableForm = (rssForm) => {
@@ -164,11 +134,16 @@ const enableForm = (rssForm) => {
 
 const handleProcessStatus = (i18nextInstance, elements, processStatus) => {
   switch (processStatus) {
+    case 'waiting':
+      elements.feedbackParagraph.classList.remove('text-success');
+      clearFeedbackMessage(elements.feedbackParagraph);
+      break;
     case 'loading':
       disableForm(elements.rssForm);
       break;
     case 'loaded':
-      renderSuccessFeedback(elements.feedbackParagraph, i18nextInstance.t('rss.loaded'));
+      elements.feedbackParagraph.classList.add('text-success');
+      showFeedbackMessage(elements.feedbackParagraph, i18nextInstance.t('rss.loaded'));
       enableForm(elements.rssForm);
       elements.rssForm.form.reset();
       elements.rssForm.inputField.focus();
@@ -182,21 +157,20 @@ const handleProcessStatus = (i18nextInstance, elements, processStatus) => {
   }
 };
 
-// eslint-disable-next-line max-len
-export default (state, i18nextInstance, elements) => onChange(state, (path, value, prevValue) => {
+export default (state, i18nextInstance, elements) => onChange(state, (path, value) => {
   switch (path) {
     case 'form.isValid':
       toggleElementClass(elements.rssForm.inputField, 'is-invalid', !value);
       elements.rssForm.inputField.focus();
       break;
     case 'form.errors':
-      handleFeedbackError(elements.feedbackParagraph, i18nextInstance, value, prevValue);
-      break;
-    case 'feedLoadingProcess.errors':
-      handleFeedbackError(elements.feedbackParagraph, i18nextInstance, value, prevValue);
+      renderFeedbackError(i18nextInstance, elements.feedbackParagraph, value);
       break;
     case 'feedLoadingProcess.status':
       handleProcessStatus(i18nextInstance, elements, value);
+      break;
+    case 'feedLoadingProcess.errors':
+      renderFeedbackError(i18nextInstance, elements.feedbackParagraph, value);
       break;
     case 'posts':
       renderPosts(elements.postsContainer, state, i18nextInstance);
@@ -204,13 +178,13 @@ export default (state, i18nextInstance, elements) => onChange(state, (path, valu
     case 'feeds':
       renderFeeds(elements.feedsContainer, state, i18nextInstance);
       break;
+    case 'userUi.idsOfReadPosts':
+      renderPosts(elements.postsContainer, state, i18nextInstance);
+      break;
     case 'userUi.modalPostId':
       renderModal(state, elements.modal, value);
       break;
-    case 'userUi.idsOfReadPosts':
-      renderPostAsRead(state, elements.postsContainer);
-      break;
     default:
-      throw new Error(`Unknown 'path': ${path}`);
+      break;
   }
 });
