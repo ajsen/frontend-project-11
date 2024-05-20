@@ -1,7 +1,6 @@
 // @ts-check
 
 import onChange from 'on-change';
-import { setElementDisabled, toggleElementClass } from './utilities.js';
 
 const buildCard = (cardTitleText) => {
   const cardBody = document.createElement('div');
@@ -123,13 +122,13 @@ const renderFeedbackError = (i18nextInstance, feedbackParagraph, error) => {
 };
 
 const disableForm = (rssForm) => {
-  setElementDisabled(rssForm.inputField, true);
-  setElementDisabled(rssForm.submitButton, true);
+  rssForm.inputField.setAttribute('disabled', '');
+  rssForm.submitButton.setAttribute('disabled', '');
 };
 
 const enableForm = (rssForm) => {
-  setElementDisabled(rssForm.inputField, false);
-  setElementDisabled(rssForm.submitButton, false);
+  rssForm.inputField.removeAttribute('disabled');
+  rssForm.submitButton.removeAttribute('disabled');
 };
 
 const handleProcessStatus = (i18nextInstance, elements, processStatus) => {
@@ -153,14 +152,14 @@ const handleProcessStatus = (i18nextInstance, elements, processStatus) => {
       elements.rssForm.inputField.focus();
       break;
     default:
-      throw new Error(`Unknown 'processState': ${processStatus}`);
+      throw new Error(`Unknown 'processStatus': ${processStatus}`);
   }
 };
 
 export default (state, i18nextInstance, elements) => onChange(state, (path, value) => {
   switch (path) {
     case 'form.isValid':
-      toggleElementClass(elements.rssForm.inputField, 'is-invalid', !value);
+      elements.rssForm.inputField.classList.toggle('is-invalid', !value);
       elements.rssForm.inputField.focus();
       break;
     case 'form.errors':
